@@ -1,0 +1,85 @@
+import asyncio
+import csv
+import logging
+import sys
+from os import getenv
+
+from aiogram import Bot, Dispatcher, html
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Message, BufferedInputFile
+
+TOKEN = getenv("BOT_TOKEN")
+ALEY_ID = getenv("ALEY_ID")
+fieldnames = [
+    "original_id", "copy_id"
+]
+
+dp = Dispatcher()
+
+start_text = """
+
+"""
+
+@dp.message(CommandStart())
+async def command_start_handler(message: Message) -> None:
+    await message.answer_photo(
+        caption=start_text,
+        photo=BufferedInputFile.from_file('start_pic.png')
+    )
+
+@dp.message()
+async def aley_handler(message: Message) -> None:
+    if message.from_user.id != ALEY_ID:
+        return
+
+    if message.reply_to_message is None:
+        return
+
+    original_id = ''
+    with open("pairs.csv", mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file, fieldnames = fieldnames)
+        for row in reader:
+            if row["copy_id"] == message.reply_to_message.message_id:
+                original_id = row['original_id']
+        file.flush()
+
+    try:
+        await message.send_copy(chat_id=original_id)
+    except TypeError:
+        await message.answer("Что-то пошло не так.")
+
+
+@dp.message()
+async def members_handler(message: Message) -> None:
+    if message.from_user.id == ALEY_ID:
+        return
+    try:
+        send_message = await message.send_copy(chat_id=ALEY_ID)
+
+        with open("pairs.csv", mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+
+            row = {
+                'original_id': message.message_id,
+                'copy_id': send_message.message_id
+            }
+
+            writer.writerow(row)
+            file.flush()
+
+    except TypeError:
+        await message.answer("Что-то пошло не так.")
+
+
+async def main() -> None:
+    bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    asyncio.run(main())
