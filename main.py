@@ -4,11 +4,11 @@ import logging
 import sys
 from os import getenv
 
-from aiogram import Bot, Dispatcher, html
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
-from aiogram.types import Message, BufferedInputFile
+from aiogram.types import Message, BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 
 TOKEN = getenv("BOT_TOKEN")
 ALEY_ID = getenv("ALEY_ID")
@@ -18,15 +18,32 @@ fieldnames = [
 
 dp = Dispatcher()
 
-start_text = """
 
-"""
+# TODO: Реализовать обработку выбора языка
+async def handle_language_choosing(callback_query, lang: str):
+    await callback_query.message.answer_photo(
+        caption=,
+        photo=BufferedInputFile.from_file('start_pic.png')
+    )
+
+@dp.callback_query(F.data == "lang_handler_ru")
+async def handle_language_choosing_ru(callback_query):
+    await handle_language_choosing(callback_query, 'ru')
+
+@dp.callback_query(F.data == "lang_handler_en")
+async def handle_language_choosing_en(callback_query):
+    await handle_language_choosing(callback_query, 'en')
+
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
-    await message.answer_photo(
-        caption=start_text,
-        photo=BufferedInputFile.from_file('start_pic.png')
+    keyboard = InlineKeyboardMarkup(inline_keyboard = [[
+        InlineKeyboardButton(text="Russian", callback_data="lang_handler_ru"),
+        InlineKeyboardButton(text="English", callback_data="lang_handler_en")
+    ]])
+    await message.answer(
+        text="Choose your language:",
+        reply_markup=keyboard
     )
 
 @dp.message()
@@ -75,11 +92,11 @@ async def members_handler(message: Message) -> None:
 
 
 async def main() -> None:
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
